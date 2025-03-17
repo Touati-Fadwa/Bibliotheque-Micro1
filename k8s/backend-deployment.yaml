@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 2  # Nous voulons deux instances de notre backend pour assurer la haute disponibilité
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: ${{ secrets.DOCKER_USERNAME }}/backend:latest  # Utilisation de l'image Docker créée et poussée
+          ports:
+            - containerPort: 8080  # Le backend écoute sur le port 8080

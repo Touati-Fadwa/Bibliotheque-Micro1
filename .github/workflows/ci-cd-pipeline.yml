@@ -1,0 +1,101 @@
+# Nom du pipeline
+name: CI/CD Pipeline
+
+# Déclencheurs pour le pipeline : à chaque push ou pull request sur la branche main
+on:
+  push:
+    branches:
+      - main  # Ce pipeline s'exécute sur chaque push vers la branche principale
+  pull_request:
+    branches:
+      - main  # Ce pipeline s'exécute également lors de pull request vers la branche principale
+
+# Définition des jobs du pipeline
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Utilisation de l'image Ubuntu pour exécuter les jobs
+    
+    steps:
+      # Étape 1 : Cloner le code du dépôt
+      - name: Checkout Code
+        uses: actions/checkout@v2  # Cette action clone le dépôt dans le job
+        
+      # Étape 2 : Installer les dépendances du backend
+      - name: Install Backend Dependencies
+        run: |
+          cd back  # Se déplacer dans le répertoire 'back' pour le backend
+          npm install  # Installer les dépendances du projet Node.js
+
+      # Étape 3 : Installer les dépendances du frontend
+      - name: Install Frontend Dependencies
+        run: |
+          cd front  # Se déplacer dans le répertoire 'front' pour le frontend
+          npm install  # Installer les dépendances du projet React
+
+      # Étape 4 : Construire l'image Docker du backend
+      - name: Build Backend Docker Image
+        run: |
+          docker build -f back/Dockerfile -t touatifadwa/backend:latest .  # Construire l'image Docker pour le backend
+
+      # Étape 5 : Construire l'image Docker du frontend
+      - name: Build Frontend Docker Image
+        run: |
+          docker build -f front/Dockerfile -t touatifadwa/frontend:latest .  # Construire l'image Docker pour le frontend
+
+      # Étape 6 : Se connecter à Docker Hub et pousser l'image du backend
+      - name: Push Backend Docker Image
+        run: |
+          docker login -u touatifadwa -p foufou53550880  # Se connecter à Docker Hub avec les secrets
+          docker push touatifadwa/backend:latest  # Pousser l'image du backend vers Docker Hub
+
+      # Étape 7 : Se connecter à Docker Hub et pousser l'image du frontend
+      - name: Push Frontend Docker Image
+        run: |
+          docker login -u touatifadwa -p foufou53550880  # Se connecter à Docker Hub avec les secrets
+          docker push touatifadwa/frontend:latest  # Pousser l'image du frontend vers Docker Hub
+      # Étape 8 : Exécuter les tests backend (par exemple, Mocha ou Jest)
+      - name: Run Backend Tests
+        run: |
+          cd back  # Se déplacer dans le répertoire 'back'
+          npm test  # Exécuter les tests du backend
+
+      # Étape 9 : Exécuter les tests frontend (par exemple, Jest)
+      - name: Run Frontend Tests
+        run: |
+          cd front  # Se déplacer dans le répertoire 'front'
+          npm test  # Exécuter les tests du frontend
+
+     
+
+      # Étape 10 : Déployer sur Kubernetes
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/backend-deployment.yaml  # Déployer le backend sur Kubernetes
+          kubectl apply -f k8s/frontend-deployment.yaml  # Déployer le frontend sur Kubernetes
+          kubectl apply -f k8s/service.yaml  # Déployer les services Kubernetes
+
+      # Étape 11 : Vérification de la santé des pods (health checks)
+      - name: Verify Services Health
+        run: |
+          kubectl get pods  # Vérifier si tous les pods sont bien en cours d'exécution
+          kubectl describe pod <pod-name>  # Décrire les détails d'un pod particulier pour voir sa santé
+
+      # Étape 12 : Monitorer avec Prometheus et Grafana
+      - name: Monitor with Prometheus and Grafana
+        run: |
+          kubectl port-forward service/prometheus 9090:9090 &  # Ouvrir un tunnel pour Prometheus
+          kubectl port-forward service/grafana 3000:3000 &  # Ouvrir un tunnel pour Grafana
+
+      # Étape 13 : Envoi de notification via Gotify (ou Slack)
+      - name: Send Notification to Gotify
+        run: |
+          curl -X POST "https://gotify.example.com/message?token=${{ secrets.GOTIFY_TOKEN }}" \  # Envoyer une notification de succès
+          -d "message=Deployment completed successfully!" \
+          -d "title=CI/CD Pipeline"
+          
+      # Étape 14 : Rollback en cas d'échec
+      - name: Rollback in case of Failure
+        if: failure()  # Cette étape s'exécute seulement si une autre étape échoue
+        run: |
+          kubectl rollout undo deployment/backend  # Revenir à la version précédente du backend
+          kubectl rollout undo deployment/frontend  # Revenir à la version précédente du frontend

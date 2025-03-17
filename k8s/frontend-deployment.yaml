@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 2  # Nous voulons deux instances de notre frontend pour la scalabilité
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ${{ secrets.DOCKER_USERNAME }}/frontend:latest  # Utilisation de l'image Docker créée et poussée
+          ports:
+            - containerPort: 80  # Le frontend écoute sur le port 80

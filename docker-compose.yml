@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Service PostgreSQL pour la base de données
+  postgres:
+    image: postgres:14
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: library
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # Service Backend (Node.js/Express)
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: backend-service
+    environment:
+      DB_HOST: postgres
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: library
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  # Service Frontend (React)
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: frontend-service
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
