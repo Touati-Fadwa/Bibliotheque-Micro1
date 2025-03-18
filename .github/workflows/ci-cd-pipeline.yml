@@ -53,7 +53,7 @@ jobs:
         run: |
           docker login -u touatifadwa -p foufou53550880  # Se connecter à Docker Hub avec les secrets
           docker push touatifadwa/frontend:latest  # Pousser l'image du frontend vers Docker Hub
-      # Étape 8 : Exécuter les tests backend (par exemple, Mocha ou Jest)
+      # Étape 8 : Exécuter les tests backend (Jest)
       - name: Run Backend Tests
         run: |
           cd back  # Se déplacer dans le répertoire 'back'
