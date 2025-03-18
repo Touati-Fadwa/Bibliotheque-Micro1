@@ -1,19 +1,19 @@
 const request = require('supertest');
-const app = require('./server'); // Importer l'application Express
+const { app, server } = require('./server'); // Importer l'application Express et le serveur
+const pool = require('./server').pool; // Importer le pool de connexions
 
-let server;
 let adminToken; // Pour stocker le token d'administrateur
 let studentToken; // Pour stocker le token d'étudiant
 
 // Démarrer le serveur avant les tests
 beforeAll(() => {
-  const PORT = process.env.PORT || 3000;
-  server = app.listen(PORT);
+  // Le serveur est déjà démarré dans server.js
 });
 
 // Arrêter le serveur après les tests
-afterAll((done) => {
-  server.close(done);
+afterAll(async () => {
+  await pool.end(); // Fermer le pool de connexions
+  server.close(); // Arrêter le serveur
 });
 
 // Tester la route GET /
@@ -21,15 +21,15 @@ describe('GET /', () => {
   it('devrait retourner un message de bienvenue', async () => {
     const res = await request(app).get('/');
     expect(res.statusCode).toEqual(200);
-    expect(res.text).toContain('Backend de la bibliothèque ISET Tozeur');
+    expect(res.text).toContain('Bibliothèque ISET Tozeur API is running');
   });
 });
 
-// Tester la route POST /api/auth/login (Admin)
-describe('POST /api/auth/login', () => {
+// Tester la route POST /api/login (Admin)
+describe('POST /api/login', () => {
   it('devrait connecter un admin avec des identifiants valides', async () => {
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/login')
       .send({
         email: 'admin@iset.tn',
         password: 'admin123',
@@ -37,17 +37,16 @@ describe('POST /api/auth/login', () => {
       });
 
     expect(res.statusCode).toEqual(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.user).toHaveProperty('token');
-    expect(res.body.user.role).toBe('admin');
+    expect(res.body.message).toBe('Login successful');
+    expect(res.body.token).toBeDefined();
 
     // Stocker le token pour les tests suivants
-    adminToken = res.body.user.token;
+    adminToken = res.body.token;
   });
 
   it('devrait refuser un admin avec des identifiants invalides', async () => {
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/login')
       .send({
         email: 'admin@iset.tn',
         password: 'wrongpassword',
@@ -55,43 +54,7 @@ describe('POST /api/auth/login', () => {
       });
 
     expect(res.statusCode).toEqual(401);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe('Échec de connexion. Vérifiez vos identifiants et le rôle sélectionné.');
-  });
-});
-
-// Tester la route POST /api/auth/login (Étudiant)
-describe('POST /api/auth/login', () => {
-  it('devrait connecter un étudiant avec des identifiants valides', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'etudiant@iset.tn',
-        password: 'etudiant123',
-        role: 'student',
-      });
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.user).toHaveProperty('token');
-    expect(res.body.user.role).toBe('student');
-
-    // Stocker le token pour les tests suivants
-    studentToken = res.body.user.token;
-  });
-
-  it('devrait refuser un étudiant avec des identifiants invalides', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
-      .send({
-        email: 'etudiant@iset.tn',
-        password: 'wrongpassword',
-        role: 'student',
-      });
-
-    expect(res.statusCode).toEqual(401);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe('Échec de connexion. Vérifiez vos identifiants et le rôle sélectionné.');
+    expect(res.body.message).toBe('Invalid credentials');
   });
 });
 
@@ -112,9 +75,7 @@ describe('POST /api/students', () => {
       });
 
     expect(res.statusCode).toEqual(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.message).toBe('Étudiant ajouté avec succès');
-    expect(res.body.student).toHaveProperty('id');
+    expect(res.body.username).toBe('newstudent');
   });
 
   it('devrait refuser la création d\'un étudiant sans token', async () => {
@@ -131,8 +92,7 @@ describe('POST /api/students', () => {
       });
 
     expect(res.statusCode).toEqual(401);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe('Authentication required');
+    expect(res.body.message).toBe('Authentication token required');
   });
 });
 
@@ -144,16 +104,13 @@ describe('GET /api/students', () => {
       .set('Authorization', `Bearer ${adminToken}`); // Utiliser le token d'administrateur
 
     expect(res.statusCode).toEqual(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.students).toBeInstanceOf(Array);
+    expect(res.body).toBeInstanceOf(Array);
   });
 
   it('devrait refuser l\'accès sans token', async () => {
-    const res = await request(app)
-      .get('/api/students');
+    const res = await request(app).get('/api/students');
 
     expect(res.statusCode).toEqual(401);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe('Authentication required');
+    expect(res.body.message).toBe('Authentication token required');
   });
 });

@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -35,9 +34,9 @@ pool.query('SELECT NOW()', (err, res) => {
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
+
   if (!token) return res.status(401).json({ message: 'Authentication token required' });
-  
+
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid or expired token' });
     req.user = user;
@@ -53,45 +52,45 @@ app.get('/', (req, res) => {
 // Login route
 app.post('/api/login', async (req, res) => {
   const { email, password, role } = req.body;
-  
+
   if (!email || !password || !role) {
     return res.status(400).json({ message: 'Email, password and role are required' });
   }
-  
+
   try {
     // Query the database for the user
     const result = await pool.query(
       'SELECT * FROM users WHERE email = $1 AND role = $2',
       [email, role]
     );
-    
+
     const user = result.rows[0];
-    
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials or role' });
     }
-    
+
     // Check password
     const validPassword = await bcrypt.compare(password, user.password);
-    
+
     if (!validPassword) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    
+
     // Create JWT token
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-    
+
     // Send response with user info (excluding password)
     const { password: _, ...userWithoutPassword } = user;
-    
+
     res.json({
       message: 'Login successful',
       user: userWithoutPassword,
-      token
+      token,
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -100,13 +99,17 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Get all students (admin only)
-app.get('/api/students', async (req, res) => {
+app.get('/api/students', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
   try {
     const result = await pool.query(
       'SELECT id, username, role, first_name, last_name, email, student_id, department, created_at FROM users WHERE role = $1',
       ['student']
     );
-    
+
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching students:', error);
@@ -115,25 +118,29 @@ app.get('/api/students', async (req, res) => {
 });
 
 // Register a new student (admin only)
-app.post('/api/students', async (req, res) => {
+app.post('/api/students', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
   const { username, password, firstName, lastName, email, studentId, department } = req.body;
-  
+
   if (!username || !password || !email) {
     return res.status(400).json({ message: 'Username, password and email are required' });
   }
-  
+
   try {
     // Check if email already exists
     const emailCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    
+
     if (emailCheck.rows.length > 0) {
       return res.status(409).json({ message: 'This email is already registered' });
     }
-    
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    
+
     // Insert new student
     const result = await pool.query(
       `INSERT INTO users (username, password, role, first_name, last_name, email, student_id, department)
@@ -141,9 +148,9 @@ app.post('/api/students', async (req, res) => {
        RETURNING id, username, role, first_name, last_name, email, student_id, department, created_at`,
       [username, hashedPassword, 'student', firstName, lastName, email, studentId, department]
     );
-    
+
     const newStudent = result.rows[0];
-    
+
     // Transform snake_case to camelCase for frontend
     const camelCaseStudent = {
       id: newStudent.id.toString(),
@@ -154,9 +161,9 @@ app.post('/api/students', async (req, res) => {
       email: newStudent.email,
       studentId: newStudent.student_id,
       department: newStudent.department,
-      createdAt: newStudent.created_at
+      createdAt: newStudent.created_at,
     };
-    
+
     res.status(201).json(camelCaseStudent);
   } catch (error) {
     console.error('Error registering student:', error);
@@ -165,20 +172,24 @@ app.post('/api/students', async (req, res) => {
 });
 
 // Delete a student (admin only)
-app.delete('/api/students/:id', async (req, res) => {
+app.delete('/api/students/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
   const { id } = req.params;
-  
+
   try {
     // Check if student exists
     const studentCheck = await pool.query('SELECT * FROM users WHERE id = $1 AND role = $2', [id, 'student']);
-    
+
     if (studentCheck.rows.length === 0) {
       return res.status(404).json({ message: 'Student not found' });
     }
-    
+
     // Delete the student
     await pool.query('DELETE FROM users WHERE id = $1', [id]);
-    
+
     res.json({ message: 'Student deleted successfully' });
   } catch (error) {
     console.error('Error deleting student:', error);
@@ -187,6 +198,9 @@ app.delete('/api/students/:id', async (req, res) => {
 });
 
 // Start the server
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Bibliothèque ISET Tozeur API running on port ${port}`);
 });
+
+// Export the app and server for testing
+module.exports = { app, server };
