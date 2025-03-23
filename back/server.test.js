@@ -3,9 +3,9 @@ const { app, server, pool } = require('./server'); // Importer l'application Exp
 
 let adminToken; // Pour stocker le token d'administrateur
 
-// Démarrer le serveur avant les tests
-beforeAll(() => {
-  // Le serveur est déjà démarré dans server.js
+// Nettoyer la base de données avant les tests
+beforeAll(async () => {
+  await pool.query('DELETE FROM users WHERE role = $1', ['student']); // Supprimer tous les étudiants
 });
 
 // Arrêter le serveur après les tests
@@ -52,7 +52,7 @@ describe('POST /api/login', () => {
       });
 
     expect(res.statusCode).toEqual(401);
-    expect(res.body.message).toBe('Invalid credentials'); // Message attendu
+    expect(res.body.message).toBe('Invalid credentials');
   });
 });
 
@@ -61,13 +61,13 @@ describe('POST /api/students', () => {
   it('devrait créer un nouvel étudiant avec des données valides', async () => {
     const res = await request(app)
       .post('/api/students')
-      .set('Authorization', `Bearer ${adminToken}`) // Utiliser le token d'administrateur
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         username: 'newstudent',
         password: 'password123',
         firstName: 'John',
         lastName: 'Doe',
-        email: 'john.doe@iset.tn',
+        email: 'john.doe@iset.tn', // Assurez-vous que cet email est unique
         studentId: '12345',
         department: 'Informatique',
       });
@@ -99,7 +99,7 @@ describe('GET /api/students', () => {
   it('devrait retourner la liste des étudiants avec un token valide', async () => {
     const res = await request(app)
       .get('/api/students')
-      .set('Authorization', `Bearer ${adminToken}`); // Utiliser le token d'administrateur
+      .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.statusCode).toEqual(200);
     expect(res.body).toBeInstanceOf(Array);
