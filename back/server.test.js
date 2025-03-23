@@ -1,16 +1,26 @@
 const request = require('supertest');
-const { app, server, pool } = require('./server'); // Importer l'application Express, le serveur et le pool de connexions
+const { app, server, pool } = require('./server');
+
+// Mock de la base de données
+jest.mock('./server', () => ({
+  pool: {
+    query: jest.fn(),
+  },
+  app: require('express')(),
+  server: {
+    close: jest.fn((callback) => callback()),
+  },
+}));
 
 let adminToken; // Pour stocker le token d'administrateur
 
-// Nettoyer la base de données avant les tests
-beforeAll(async () => {
-  await pool.query('DELETE FROM users WHERE role = $1', ['student']); // Supprimer tous les étudiants
+// Nettoyer les mocks avant chaque test
+beforeEach(() => {
+  jest.clearAllMocks();
 });
 
 // Arrêter le serveur après les tests
 afterAll(async () => {
-  await pool.end(); // Fermer le pool de connexions
   await new Promise((resolve) => server.close(resolve)); // Arrêter le serveur
 });
 
@@ -26,6 +36,17 @@ describe('GET /', () => {
 // Tester la route POST /api/login (Admin)
 describe('POST /api/login', () => {
   it('devrait connecter un admin avec des identifiants valides', async () => {
+    // Simuler une réponse de la base de données
+    pool.query.mockResolvedValue({
+      rows: [{
+        id: 1,
+        username: 'admin',
+        password: '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // Mot de passe haché pour "admin123"
+        role: 'admin',
+        email: 'admin@iset.tn',
+      }],
+    });
+
     const res = await request(app)
       .post('/api/login')
       .send({
@@ -43,6 +64,9 @@ describe('POST /api/login', () => {
   });
 
   it('devrait refuser un admin avec des identifiants invalides', async () => {
+    // Simuler une réponse vide de la base de données
+    pool.query.mockResolvedValue({ rows: [] });
+
     const res = await request(app)
       .post('/api/login')
       .send({
@@ -59,6 +83,22 @@ describe('POST /api/login', () => {
 // Tester la route POST /api/students (Créer un étudiant)
 describe('POST /api/students', () => {
   it('devrait créer un nouvel étudiant avec des données valides', async () => {
+    // Simuler une réponse de la base de données
+    pool.query.mockResolvedValue({
+      rows: [{
+        id: 2,
+        username: 'newstudent',
+        password: 'password123',
+        role: 'student',
+        first_name: 'John',
+        last_name: 'Doe',
+        email: 'john.doe@iset.tn',
+        student_id: '12345',
+        department: 'Informatique',
+        created_at: new Date().toISOString(),
+      }],
+    });
+
     const res = await request(app)
       .post('/api/students')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -67,7 +107,7 @@ describe('POST /api/students', () => {
         password: 'password123',
         firstName: 'John',
         lastName: 'Doe',
-        email: 'john.doe@iset.tn', // Assurez-vous que cet email est unique
+        email: 'john.doe@iset.tn',
         studentId: '12345',
         department: 'Informatique',
       });
@@ -97,6 +137,21 @@ describe('POST /api/students', () => {
 // Tester la route GET /api/students (Récupérer la liste des étudiants)
 describe('GET /api/students', () => {
   it('devrait retourner la liste des étudiants avec un token valide', async () => {
+    // Simuler une réponse de la base de données
+    pool.query.mockResolvedValue({
+      rows: [{
+        id: 2,
+        username: 'newstudent',
+        role: 'student',
+        first_name: 'John',
+        last_name: 'Doe',
+        email: 'john.doe@iset.tn',
+        student_id: '12345',
+        department: 'Informatique',
+        created_at: new Date().toISOString(),
+      }],
+    });
+
     const res = await request(app)
       .get('/api/students')
       .set('Authorization', `Bearer ${adminToken}`);
