@@ -105,7 +105,7 @@ app.post('/api/login', async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials or role' });
+      return res.status(401).json({ message: 'Invalid credentials' }); // Message modifié pour correspondre au test
     }
 
     // Vérifier le mot de passe
@@ -240,5 +240,5 @@ const server = app.listen(port, () => {
   console.log(`Bibliothèque ISET Tozeur API running on port ${port}`);
 });
 
-// Export the app and server for testing
-module.exports = { app, server };
+// Export the app, server, and pool for testing
+module.exports = { app, server, pool };

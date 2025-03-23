@@ -1,9 +1,7 @@
 const request = require('supertest');
-const { app, server } = require('./server'); // Importer l'application Express et le serveur
-const pool = require('./server').pool; // Importer le pool de connexions
+const { app, server, pool } = require('./server'); // Importer l'application Express, le serveur et le pool de connexions
 
 let adminToken; // Pour stocker le token d'administrateur
-let studentToken; // Pour stocker le token d'étudiant
 
 // Démarrer le serveur avant les tests
 beforeAll(() => {
@@ -13,7 +11,7 @@ beforeAll(() => {
 // Arrêter le serveur après les tests
 afterAll(async () => {
   await pool.end(); // Fermer le pool de connexions
-  server.close(); // Arrêter le serveur
+  await new Promise((resolve) => server.close(resolve)); // Arrêter le serveur
 });
 
 // Tester la route GET /
@@ -54,7 +52,7 @@ describe('POST /api/login', () => {
       });
 
     expect(res.statusCode).toEqual(401);
-    expect(res.body.message).toBe('Invalid credentials');
+    expect(res.body.message).toBe('Invalid credentials'); // Message attendu
   });
 });
 
