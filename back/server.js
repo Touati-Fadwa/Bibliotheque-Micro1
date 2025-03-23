@@ -30,6 +30,19 @@ pool.query('SELECT NOW()', (err, res) => {
   }
 });
 
+// Admin credentials (fixed for now)
+const adminUser = {
+  id: "admin-1",
+  username: "admin",
+  password: "admin123", // Mot de passe en clair (à utiliser uniquement pour le développement)
+  role: "admin",
+  firstName: "Admin",
+  lastName: "User",
+  email: "admin@iset.tn",
+  department: "Administration",
+  createdAt: new Date()
+};
+
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -57,8 +70,33 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ message: 'Email, password and role are required' });
   }
 
+  // Vérifier l'administrateur fixe
+  if (email === adminUser.email && password === adminUser.password && role === adminUser.role) {
+    // Créer un token pour l'administrateur fixe
+    const token = jwt.sign(
+      { id: adminUser.id, role: adminUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Envoyer la réponse
+    return res.json({
+      message: 'Login successful',
+      user: {
+        id: adminUser.id,
+        username: adminUser.username,
+        role: adminUser.role,
+        firstName: adminUser.firstName,
+        lastName: adminUser.lastName,
+        email: adminUser.email,
+        department: adminUser.department,
+      },
+      token,
+    });
+  }
+
+  // Si ce n'est pas l'administrateur fixe, vérifier dans la base de données
   try {
-    // Query the database for the user
     const result = await pool.query(
       'SELECT * FROM users WHERE email = $1 AND role = $2',
       [email, role]
@@ -70,21 +108,21 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials or role' });
     }
 
-    // Check password
+    // Vérifier le mot de passe
     const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Create JWT token
+    // Créer un token pour les utilisateurs normaux
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Send response with user info (excluding password)
+    // Envoyer la réponse (sans le mot de passe)
     const { password: _, ...userWithoutPassword } = user;
 
     res.json({

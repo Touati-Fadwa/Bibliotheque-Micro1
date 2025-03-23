@@ -1,8 +1,5 @@
-
-import { Book, User } from "./types";
-
 // Admin credentials (fixed for now)
-export const adminUser: User = {
+export const adminUser = {
   id: "admin-1",
   username: "admin",
   password: "admin123",
@@ -15,7 +12,7 @@ export const adminUser: User = {
 };
 
 // Sample student users
-export const studentUsers: User[] = [
+export const studentUsers = [
   {
     id: "student-1",
     username: "fadwatouati58",
@@ -43,7 +40,7 @@ export const studentUsers: User[] = [
 ];
 
 // Sample books
-export const books: Book[] = [
+export const books = [
   {
     id: "book-1",
     title: "L'Étranger",
