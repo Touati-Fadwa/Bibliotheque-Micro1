@@ -42,29 +42,41 @@ jobs:
           cd front
           npm install
 
-      # Étape 4 : Construire l'image Docker du backend
-      - name: Build Backend Docker Image
+      # Étape 4 : Vérifier la connexion à la base de données
+      - name: Check Database Connection
+        env:
+          DB_USER: postgres
+          DB_HOST: localhost
+          DB_NAME: bibliotheque_iset
+          DB_PASSWORD: fadwa
+          DB_PORT: 5432
         run: |
-          docker build -f back/Dockerfile -t touatifadwa/backend:latest .
+          psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "SELECT NOW();"
 
-      # Étape 5 : Construire l'image Docker du frontend
-      - name: Build Frontend Docker Image
+      # Étape 5 : Exécuter les migrations de la base de données
+      - name: Run Database Migrations
+        env:
+          DB_USER: postgres
+          DB_HOST: localhost
+          DB_NAME: bibliotheque_iset
+          DB_PASSWORD: fadwa
+          DB_PORT: 5432
         run: |
-          docker build -f front/Dockerfile -t touatifadwa/frontend:latest .
+          cd back
+          npx knex migrate:latest
 
-      # Étape 6 : Se connecter à Docker Hub et pousser l'image du backend
-      - name: Push Backend Docker Image
+      # Étape 6 : Vérifier que les tables existent
+      - name: Verify Database Tables
+        env:
+          DB_USER: postgres
+          DB_HOST: localhost
+          DB_NAME: bibliotheque_iset
+          DB_PASSWORD: fadwa
+          DB_PORT: 5432
         run: |
-          docker login -u touatifadwa -p foufou53550880
-          docker push touatifadwa/backend:latest
+          psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "\dt"
 
-      # Étape 7 : Se connecter à Docker Hub et pousser l'image du frontend
-      - name: Push Frontend Docker Image
-        run: |
-          docker login -u touatifadwa -p foufou53550880
-          docker push touatifadwa/frontend:latest
-
-      # Étape 8 : Exécuter les tests backend (Jest)
+      # Étape 7 : Exécuter les tests backend (Jest)
       - name: Run Backend Tests
         env:
           DB_USER: postgres
@@ -78,20 +90,42 @@ jobs:
           cd back
           npm test
 
-      # Étape 9 : Exécuter les tests frontend (par exemple, Jest)
+      # Étape 8 : Exécuter les tests frontend (par exemple, Jest)
       - name: Run Frontend Tests
         run: |
           cd front
           npm test
 
-      # Étape 10 : Déployer sur Kubernetes
+      # Étape 9 : Construire l'image Docker du backend
+      - name: Build Backend Docker Image
+        run: |
+          docker build -f back/Dockerfile -t touatifadwa/backend:latest .
+
+      # Étape 10 : Construire l'image Docker du frontend
+      - name: Build Frontend Docker Image
+        run: |
+          docker build -f front/Dockerfile -t touatifadwa/frontend:latest .
+
+      # Étape 11 : Se connecter à Docker Hub et pousser l'image du backend
+      - name: Push Backend Docker Image
+        run: |
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker push touatifadwa/backend:latest
+
+      # Étape 12 : Se connecter à Docker Hub et pousser l'image du frontend
+      - name: Push Frontend Docker Image
+        run: |
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker push touatifadwa/frontend:latest
+
+      # Étape 13 : Déployer sur Kubernetes
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/backend-deployment.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/service.yaml
 
-      # Étape 11 : Vérification de la santé des pods (health checks)
+      # Étape 14 : Vérification de la santé des pods (health checks)
       - name: Verify Services Health
         run: |
           kubectl get pods
@@ -101,7 +135,7 @@ jobs:
             echo "Aucun pod disponible."
           fi
 
-      # Étape 12 : Rollback en cas d'échec
+      # Étape 15 : Rollback en cas d'échec
       - name: Rollback in case of Failure
         if: failure()
         run: |
