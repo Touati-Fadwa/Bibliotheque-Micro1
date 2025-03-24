@@ -51,18 +51,7 @@ jobs:
         run: |
           psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "SELECT NOW();"
 
-      # Étape 5 : Installer Knex et exécuter les migrations
-      - name: Run Database Migrations
-        env:
-          DB_USER: postgres
-          DB_HOST: localhost
-          DB_NAME: bibliotheque_iset
-          DB_PASSWORD: fadwa
-          DB_PORT: 5432
-        run: |
-          cd back
-          npm install knex  # Installer knex localement
-          npx knex migrate:latest  # Appliquer les migrations
+     
 
       # Étape 6 : Vérifier que les tables existent
       - name: Verify Database Tables
