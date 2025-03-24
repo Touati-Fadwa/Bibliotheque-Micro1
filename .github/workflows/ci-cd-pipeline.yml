@@ -1,6 +1,5 @@
 name: CI/CD Pipeline
 
-# Déclencheurs pour le pipeline : à chaque push ou pull request sur la branche main
 on:
   push:
     branches:
@@ -9,14 +8,13 @@ on:
     branches:
       - main
 
-# Définition des jobs du pipeline
 jobs:
   build:
     runs-on: ubuntu-latest
 
     services:
       postgres:
-        image: postgres:16  # Spécification de la version de PostgreSQL
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: fadwa
@@ -53,7 +51,7 @@ jobs:
         run: |
           psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "SELECT NOW();"
 
-      # Étape 5 : Exécuter les migrations de la base de données
+      # Étape 5 : Installer Knex et exécuter les migrations
       - name: Run Database Migrations
         env:
           DB_USER: postgres
@@ -63,7 +61,8 @@ jobs:
           DB_PORT: 5432
         run: |
           cd back
-          npx knex migrate:latest
+          npm install knex  # Installer knex localement
+          npx knex migrate:latest  # Appliquer les migrations
 
       # Étape 6 : Vérifier que les tables existent
       - name: Verify Database Tables
