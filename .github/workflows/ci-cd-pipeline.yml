@@ -42,29 +42,29 @@ jobs:
           cd front
           npm install
 
-          # Étape 11 : Construire l'image Docker du backend
+      # Étape 4 : Construire l'image Docker du backend
       - name: Build Backend Docker Image
         run: |
           docker build -f back/Dockerfile -t touatifadwa/backend:latest .
 
-      # Étape 4 : Construire l'image Docker du frontend
+      # Étape 5 : Construire l'image Docker du frontend
       - name: Build Frontend Docker Image
         run: |
           docker build -f front/Dockerfile -t touatifadwa/frontend:latest .
 
-      # Étape 5 : Se connecter à Docker Hub et pousser l'image du backend
+      # Étape 6 : Se connecter à Docker Hub et pousser l'image du backend
       - name: Push Backend Docker Image
         run: |
           docker login -u touatifadwa -p foufou53550880
           docker push touatifadwa/backend:latest
 
-      # Étape 6 : Se connecter à Docker Hub et pousser l'image du frontend
+      # Étape 7 : Se connecter à Docker Hub et pousser l'image du frontend
       - name: Push Frontend Docker Image
         run: |
           docker login -u touatifadwa -p foufou53550880
           docker push touatifadwa/frontend:latest
 
-      # Étape 7 : Vérifier la connexion à la base de données
+      # Étape 8 : Vérifier la connexion à la base de données
       - name: Check Database Connection
         env:
           DB_USER: postgres
@@ -75,20 +75,17 @@ jobs:
         run: |
           psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "SELECT NOW();"
 
-      # Étape 8 : Exécuter les migrations de la base de données
+      # Étape 9 : Exécuter les migrations de la base de données (nouvelle approche simplifiée)
       - name: Run Database Migrations
-        env:
-          DB_USER: postgres
-          DB_HOST: localhost
-          DB_NAME: bibliotheque_iset
-          DB_PASSWORD: fadwa
-          DB_PORT: 5432
+        working-directory: ./back
         run: |
-          cd back
-          npm install knex  # Installer knex localement
-          npx knex migrate:latest  # Appliquer les migrations
+          npm install knex pg
+          npx knex migrate:latest \
+            --client=pg \
+            --connection="postgres://postgres:fadwa@localhost:5432/bibliotheque_iset" \
+            --migrations-directory=./migrations
 
-      # Étape 9 : Vérifier que les tables existent
+      # Étape 10 : Vérifier que les tables existent
       - name: Verify Database Tables
         env:
           DB_USER: postgres
@@ -99,7 +96,7 @@ jobs:
         run: |
           psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "\dt"
 
-      # Étape 10 : Inspecter la table `users`
+      # Étape 11 : Inspecter la table `users`
       - name: Inspect Users Table
         env:
           DB_USER: postgres
@@ -110,19 +107,16 @@ jobs:
         run: |
           psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "SELECT * FROM users;"
 
-      # Étape 11 : Exécuter les seeds (si nécessaire)
+      # Étape 12 : Exécuter les seeds (si nécessaire)
       - name: Run Database Seeds
-        env:
-          DB_USER: postgres
-          DB_HOST: localhost
-          DB_NAME: bibliotheque_iset
-          DB_PASSWORD: fadwa
-          DB_PORT: 5432
+        working-directory: ./back
         run: |
-          cd back
-          npx knex seed:run  # Exécuter les seeds
+          npx knex seed:run \
+            --client=pg \
+            --connection="postgres://postgres:fadwa@localhost:5432/bibliotheque_iset" \
+            --seeds-directory=./seeds
 
-      # Étape 12 : Exécuter les tests backend (Jest)
+      # Étape 13 : Exécuter les tests backend (Jest)
       - name: Run Backend Tests
         env:
           DB_USER: postgres
@@ -136,22 +130,20 @@ jobs:
           cd back
           npm test -- --verbose  # Afficher les logs détaillés des tests
 
-      # Étape 13 : Exécuter les tests frontend (par exemple, Jest)
+      # Étape 14 : Exécuter les tests frontend (par exemple, Jest)
       - name: Run Frontend Tests
         run: |
           cd front
           npm test
 
-      
-
-      # Étape 14 : Déployer sur Kubernetes
+      # Étape 15 : Déployer sur Kubernetes
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/backend-deployment.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/service.yaml
 
-      # Étape 15 : Vérification de la santé des pods (health checks)
+      # Étape 16 : Vérification de la santé des pods (health checks)
       - name: Verify Services Health
         run: |
           kubectl get pods
@@ -161,7 +153,7 @@ jobs:
             echo "Aucun pod disponible."
           fi
 
-      # Étape 16 : Rollback en cas d'échec
+      # Étape 17 : Rollback en cas d'échec
       - name: Rollback in case of Failure
         if: failure()
         run: |
