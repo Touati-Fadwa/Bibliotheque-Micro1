@@ -42,7 +42,29 @@ jobs:
           cd front
           npm install
 
-      # Étape 4 : Vérifier la connexion à la base de données
+          # Étape 11 : Construire l'image Docker du backend
+      - name: Build Backend Docker Image
+        run: |
+          docker build -f back/Dockerfile -t touatifadwa/backend:latest .
+
+      # Étape 4 : Construire l'image Docker du frontend
+      - name: Build Frontend Docker Image
+        run: |
+          docker build -f front/Dockerfile -t touatifadwa/frontend:latest .
+
+      # Étape 5 : Se connecter à Docker Hub et pousser l'image du backend
+      - name: Push Backend Docker Image
+        run: |
+          docker login -u touatifadwa -p foufou53550880
+          docker push touatifadwa/backend:latest
+
+      # Étape 6 : Se connecter à Docker Hub et pousser l'image du frontend
+      - name: Push Frontend Docker Image
+        run: |
+          docker login -u touatifadwa -p foufou53550880
+          docker push touatifadwa/frontend:latest
+
+      # Étape 7 : Vérifier la connexion à la base de données
       - name: Check Database Connection
         env:
           DB_USER: postgres
@@ -53,7 +75,7 @@ jobs:
         run: |
           psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "SELECT NOW();"
 
-      # Étape 5 : Exécuter les migrations de la base de données
+      # Étape 8 : Exécuter les migrations de la base de données
       - name: Run Database Migrations
         env:
           DB_USER: postgres
@@ -66,7 +88,7 @@ jobs:
           npm install knex  # Installer knex localement
           npx knex migrate:latest  # Appliquer les migrations
 
-      # Étape 6 : Vérifier que les tables existent
+      # Étape 9 : Vérifier que les tables existent
       - name: Verify Database Tables
         env:
           DB_USER: postgres
@@ -77,7 +99,7 @@ jobs:
         run: |
           psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "\dt"
 
-      # Étape 7 : Inspecter la table `users`
+      # Étape 10 : Inspecter la table `users`
       - name: Inspect Users Table
         env:
           DB_USER: postgres
@@ -88,7 +110,7 @@ jobs:
         run: |
           psql postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c "SELECT * FROM users;"
 
-      # Étape 8 : Exécuter les seeds (si nécessaire)
+      # Étape 11 : Exécuter les seeds (si nécessaire)
       - name: Run Database Seeds
         env:
           DB_USER: postgres
@@ -100,7 +122,7 @@ jobs:
           cd back
           npx knex seed:run  # Exécuter les seeds
 
-      # Étape 9 : Exécuter les tests backend (Jest)
+      # Étape 12 : Exécuter les tests backend (Jest)
       - name: Run Backend Tests
         env:
           DB_USER: postgres
@@ -114,42 +136,22 @@ jobs:
           cd back
           npm test -- --verbose  # Afficher les logs détaillés des tests
 
-      # Étape 10 : Exécuter les tests frontend (par exemple, Jest)
+      # Étape 13 : Exécuter les tests frontend (par exemple, Jest)
       - name: Run Frontend Tests
         run: |
           cd front
           npm test
 
-      # Étape 11 : Construire l'image Docker du backend
-      - name: Build Backend Docker Image
-        run: |
-          docker build -f back/Dockerfile -t touatifadwa/backend:latest .
+      
 
-      # Étape 12 : Construire l'image Docker du frontend
-      - name: Build Frontend Docker Image
-        run: |
-          docker build -f front/Dockerfile -t touatifadwa/frontend:latest .
-
-      # Étape 13 : Se connecter à Docker Hub et pousser l'image du backend
-      - name: Push Backend Docker Image
-        run: |
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-          docker push touatifadwa/backend:latest
-
-      # Étape 14 : Se connecter à Docker Hub et pousser l'image du frontend
-      - name: Push Frontend Docker Image
-        run: |
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-          docker push touatifadwa/frontend:latest
-
-      # Étape 15 : Déployer sur Kubernetes
+      # Étape 14 : Déployer sur Kubernetes
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/backend-deployment.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/service.yaml
 
-      # Étape 16 : Vérification de la santé des pods (health checks)
+      # Étape 15 : Vérification de la santé des pods (health checks)
       - name: Verify Services Health
         run: |
           kubectl get pods
@@ -159,7 +161,7 @@ jobs:
             echo "Aucun pod disponible."
           fi
 
-      # Étape 17 : Rollback en cas d'échec
+      # Étape 16 : Rollback en cas d'échec
       - name: Rollback in case of Failure
         if: failure()
         run: |
